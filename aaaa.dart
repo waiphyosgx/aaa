@@ -8,3 +8,6 @@ class AmeHelper {
     return result;
   }
 } 
+ final result = await _controller?.runJavaScriptReturningResult(
+        'encryptVerifyStaticNoUserRSABlock256("${ame[0]}","${ame[1]}","${ame[2]}","${ame[3]}")');
+    print(result);
