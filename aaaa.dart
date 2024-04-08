@@ -1,13 +1,7 @@
-class AmeHelper {
-  encryptPinForAM(List args) async{
-    WebViewController myController = WebViewController();
-    myController.setJavaScriptMode(JavaScriptMode.unrestricted);
-    String ameSecurity =  await rootBundle.loadString("packages/sgx_online_login/assets/js/ame_security_util.js");
-    await myController.runJavaScript(ameSecurity);
-    final result = await myController.runJavaScriptReturningResult('encryptPinForAM("${args[0]}","${args[1]}","${args[2]}","${args[3]}","${args[4]}")');
-    return result;
-  }
-} 
- final result = await _controller?.runJavaScriptReturningResult(
-        'encryptVerifyStaticNoUserRSABlock256("${ame[0]}","${ame[1]}","${ame[2]}","${ame[3]}")');
-    print(result);
+
+2024-04-08 21:43:04.310 10104-10271 sgx-android             com.sgx.SGXandroid                   D  timer is 1712583784299
+2024-04-08 21:43:04.311 10104-10271 sgx-android             com.sgx.SGXandroid                   D  device token is 9f2a92de-d0ce-4ad1-a887-2ccb019141b0
+2024-04-08 21:43:04.313 10104-10271 sgx-android             com.sgx.SGXandroid                   D  priKey is MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC5Ex/lPfKFoP086zVFwuC9qBfpbkVJ5wxVD+GReeJhCrMMZ+7tlx7CFmr5tHzRc0X4naVp3aQOpQW70zs7qbb69FjtL/lNw53ni/MTuYOzcDOo4QLH2ZHZTC2lCQSA5HjELxfilvaAUgZPUGK4WL9CRql5Tt5OoTiEJaTDnH3VcWqj0o3dp4UGXMI7HQXj7Ajt33jtesh6MIW4p2XY5nrgYLkNUbBK7DRJvxwBILb4Iq1y0K3C2a1CFtOaGr/18oY9v9glPicAIqd8QO2dRfuQhwO8VVMQfm27TvrlUoPmVgInxaKHgo+cSdN6qYO/QYfKLVODZirfQf1bwrbAsMiLAgMBAAECggEAKZSGYfac+jDFNF6TxWyXGYUeei9wGb5zItlCkHCVz7+bonnnUDHXkzt+JUPLlzMS0Vx5wWMubKvesegvMqRam98x63gPxszgORlUL2ZKlJHsyVBkU4oqHmvjBWUVQfASweDiuOG51/KVwFQLGee2cKl3ge2aPIg0LlxWvCv4iW9j8Hx5E2nd7kKe5+aB1rUe03CaoeI004k4dfx2dWzSFynxWymHPRHMYZ2GpNjpVVbKBPCYPf3nRGbzEFOrTKD5+/GL8IBOuCFzgOx+beLb7CnfHMtteMv6n7kjVgv/ikllXWdlkhHxXWdgihi6LzKKJlkNJBo/c/eBzfxXjA+ygQKBgQDgOTkA5QgqaqXs9LN3RBcXhvdbivDl3xYqJu4hVwv4ePGiOABqVZUUTJ0UMj3OZRQmHwNmxgnn0COeUS8CI4Fbb66h1pZ7dkVOZHW11QVtjkMqXFmc8BvINc53Wx/WklExDLiZn+oL/MWbvlUBVv4OFtp+ulkI1XSKkEBux9F7kQKBgQDTTZeBtOcaNMarXUS8pJQ8/TTJ0Qh7XmxIhv9c0M0YamyBxrttw2NXApgLzPJhIO3aXtB0tDzMSkUkmzdYR3vU+AMG108msovYmX9sdPuaVeXnlegy9U+Z18eJdydiChMmQFCDNg1ubD943/xAD7fxKmaXWxv0PQG3aUWt/VYcWwKBgCnyCnvkXJayxL+DN1+EWV2JXhS99TrLdPYFul56Tj75QRq7pzg9MlpNysTQcUd/GTnYa2Z6fbfj9AXV4hlgUv6r8dtMrXIDOgvkNzEA3LcV+fKevBTjxg66Ihmp7lbRoGawnof+pmX/r2fnPze08mnoVI+IhMdmRxr0yVjwAHxBAoGBAIEfOSYZ1d89wOmW5RohuDRMxqVNB1HcMW9gj0u4jJwO7J+hQYehjmLtQtxzMOoJpU98AQZP3Zc5C2eDMh7QD+vkYnUbvVJ4aNzDcApmshltxD/wayQ4o5vvMA/gsEBIx8roIksMDMkdfOvwc8Tx1gWZU3fKRRrK7PGXcu0Pkj9hAoGAFoO5WInFbh44vhLcnwEX6xeLkA+XsOfr3WWReXuKUryi96Wwq79qleZzwd8gIJ/ng9u7upQzZtXyQWBsiXO6JKrG0n4iQGLp4eTpjZkDVSNH3cpdX04uHB1uGldKnT8wvBODDg9bq3RscBHIjkSVs/6lXIcU5BzzhLWZgrI7kv4=
+2024-04-08 21:43:04.314 10104-10104 sgx-android             com.sgx.SGXandroid                   D  Getting  All Stocks
+2024-04-08 21:43:04.316 10104-10104 sgx-android             com.sgx.SGXandroid                   D  ----Calling getAllStocks API: https://api.qasgx.com/securities/v1.1?params=n,nc,lt,c,p,vl,v,sc,o,h,l,cx,b,bv,s,sv,r,i&ts=1712583784314
+2024-04-08 21:43:04.322 10104-10271 sgx-android             com.sgx.SGXandroid                   D  result is h7y4NDJcbI5OLDecIGhaYKJF0n8VW144CqiIrbWnLLLjc303gMx9raVBrMOIETq0tpM3OdZ8Nf/vJxgDBm7YMyQLM+gX/MfGscPAEs0Fb/87BotPXOeU2yBpN8AwtqNnrSh7O9WvyLdeEwKp/k5uXVVVEbWVNUG6xrWYb3TfzgRDGnhEAYac6vaH1vbJMz5B6nYdIaTH8l5FnePC90bYbm+cG8IYgRtBO08wAoltU9xAzUwqt57NhcN8O1yGXkHP1/osyz
