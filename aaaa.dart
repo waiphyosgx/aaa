@@ -1,35 +1,26 @@
-   private suspend fun getStorageValue(key: String): String {
-        val binaryMessenger = flutterEngine?.dartExecutor?.binaryMessenger
-        var storageValue = ""
-        return suspendCoroutine {
-            if (binaryMessenger != null) {
-                methodChannel = MethodChannel(binaryMessenger, channel)
-                // Call Flutter after 10 seconds to get the value
-                methodChannel.invokeMethod(
-                    "getValueFromFlutter",
-                    key,
-                    object : MethodChannel.Result {
-                        override fun success(result: Any?) {
-                            storageValue = result.toString()
-                            Logger.d("result is getting $storageValue")
-                            it.resume(storageValue)
-                        }
-
-                        override fun error(
-                            errorCode: String,
-                            errorMessage: String?,
-                            errorDetails: Any?
-                        ) {
-                            it.resume("")
-                        }
-
-                        override fun notImplemented() {
-                            it.resume("")
-                        }
-                    })
-            }
-            else{
-                it.resume("")
-            }
-        }
-    }
+Andy Nguyen 4/25/2024 5:30 PM • ///Native iOS private key.
+MIIEowIBAAKCAQEAwt97fU6dAA4DIS/f1Z8qUPAhjr9gQf3/VtD7GKW3oIUsRxuL
+U1fpVi1c6/0SgGqXBtFWB4k9PWZx0dTNT0fQ4R/t0InhKy3+n4OdfhVi/tM0x51j
+2dshwdKx0dSngkYiMl/P0P5KlhPeFWVFW+8Lm2x2HS5M7iZxwn5TscTQmMBLQ9Uh
+3lziz9NGdm3PSU6NG+n9oFqJgIPb+jpvJuBNcCTpO6axITOZHftKYzNaqtokVvWw
+h5mPKTP9aJEjEGzZp/Bnm3hcSTuItqMGwLhZcM1jdq7P10V8/Z2uq1sWEwM1KVO7
+lTzC1AceWznHKwi0StcKvqJQY1ndObOq6q/MzQIDAQABAoIBACkU4/uurvpr+czt
+QsrOGyWk+e4V+jzvRv0OYWD4zpVQfd0fuWeAiPhZ59T4LQZVcjFFwFUmYXqoNiZ+
+LioggbB0AraL2qQ3tg36uSDzcUM3U1EhpQMwZxVtTX9mzUlxb5QfDriIY0DwP0lT
+aCPRaSkC3IOaVy19fU37Q7mePDt3MDU03XJenrvVwgwdI1St5EDICkBivWGzXQVK
+ZrMm3Isl0IDPHrc2Utkl2cC738eIpQT510Q+B/oj5A0/6wRDQAPkOtbTGdVBYzr0
+63qjfZzQQ2L+5YOQvCjqveyZrXlpYoVJyI4H3OC6wlIwOQRXYm1+WwPMNn2vbQMq
+Sy/ThyECgYEA5Af1J+oak2q4SkLxm6LnILaMoeW3HfCMWUx+xRgaQXQbfTXeOqL1
+PIlz13aHqz+/JeXOVPf/2Cw8UB/2e/wOrAsBPeAL9LhaZ50oIH4S4A1EO9CxQeI9
++FwPOc5UV6lvL2a5P8SLheHZ+/XGvrKL/1ZY6b80IjDRfO+rvr201tMCgYEA2sZh
+L+zrkqXM57XMQiStOW2WE2IM2xmpkCfjdxxO31QxOq+qh0ZEGsYsrQ705z1LFeg0
+6qRnPLEl9ZnDQ4mBOvhQ32kLJqIDzpnZDpaQ3XDqinXFqS/DL/V6K3/xXBN5tlTU
+oZ5I+cj5WB0QZev0NMphNr+OTghTHDOpFVhvyd8CgYEA2Gjo9HGLuT4+GlRAIhnP
+Sk+VVgzB5csmF5WudfTy7g14DTOzbWi8XzB/3QtjpFWCXkAjuqYGjC0nLE+5SF+l
+uQdUrVlVX3Iacl1G+NdNqI9Oo4niwAksEOmllZHIn81wdMcDpo4sb+oxS5ssfEzM
+6o4TIftRSeWU2wJGt2YpGvsCgYB/32g6/P4Mb0C/RrGnD4z4fic0GSFuhydnDQmV
+O0SWoL1NkhPYkaeJBsBiPtXCuz7CBUG4zHNTNC/9x+wr85lHgJC0pM9Ru20CO0Z1
+kmgGJtPQLlpkM3ig9Zh9CIFo0jFX82l9NeltppyndgV5rVrF6Gy99WUWEyOQ3lk8
+Er70fQKBgAazwqo4OvTcT062zhaW1mGuLoC5gIur6Y4d7bKcfUMWi5sNp0gqtm+f
+l72p/aS9tf2QVciLaCFaKHqR/rxc9wZykhKa9RrrbNGoayzNFpPFFT8tPrLnCnls
+K0pbCq793Xo2f6h+q/pT0U/L4xltpwwG8IVD+S0y5k1Fjti+6iFV
