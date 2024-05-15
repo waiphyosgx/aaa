@@ -1,5 +1,76 @@
-https://api2.sgx.com/content-api?queryid=d3ceca9a1d6757145b3676c2a95443229e0e98f8%3Awe_chat_qr_validator
 
 
-<string name="SYNC_PUB_KEY">MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCdKMRuOlVWaHm57t1IOdU0apbC39SDq5BHfiBeeZpd27AloEI5IVxoUmF9Ue24xexyuN4IDsMsOJtTAaxM1weThunkKXWTsb1WemderZ52L+woN9w9oMu5bYMnUjmWHPTW5CMtXlqrr2pJ+3Yje9e+VFnGVdNoxOm6R6APSMbhnQVkeY3pXA2Hb2F55hmXxF91DBnxvFxIXy2TeXmwRQsYeKAdGYh6rgTxmQwRdWzMkdGRyut+mh74vIEOew1+jVpw2Zg6irpVEfy9ybIwAMrPHkOeZnObx4BxdDUNQMMlUOFHufhLzY+4mKYaqNdn3VkcRSEwLOpmQsBj6X/ZiQwDAgMBAAECggEABHBRU/erz1v2DC1V7KNNhUR5a5mcy/c9hPdn/KMcnAgHapijJi/uBzhEbqCwwSY97mOQSdP46TfUEz0Z27W7DgyicIJHQtujSFz+rGrk7duepOgm/UqcVmlkaejlnXrF44fgAnkGwJCcxOgoRwpJZqPFQVfNN8lP/KXnPGdGzrpwRoe6dQWDrL92SbwJ0TnDl0B9USzG9pP14zMc6y+n0DobUUcbY6gXuB6JmIL0qEPqXRl24mA3RJ1JPrcF/D9BVDUVteaQxzRHcLzFOzni1Tgw/O/WGoPu20A8smVEi1LwnzYbj+31m6OlnsVWenh+0Nk3jutAGh9IsP7DXJ9JyQKBgQDMEaF4tuP4Llkf2eLkaZDMWa0c3y7K5MSVo3w7Enqbz+er6vXt16BfJ1Bxqf7jbw+pRmBapP6uEAJSia1Av/4xvrIYWm2uS6YHOrAbXYAXQ2le6AyKJR+6HiHNQjr5A0ih7kQGdCgHv+F4RP7d+qbzI4PCB9DKqAEyKdcLSppCJQKBgQDFJyO8lEDxNugyPwQ845NOXikcGVEcMmDbROhYKUJ7eG4qFMKPmvcNWatAxtD2u50tjE3wcJ7yqU69P3oHfGq0mF9isgUqOAWp25XKRY4bz+MO4I7gbNSsBbh7EWyOuAZRlakCkmwy+GdXi2aWA0aKTElElaVsCQZjLQI5cws5BwKBgC+B1z58DVxkpdj1Z43XSZ9ZLSTwjDstwNo5Qh2acrK9Vui9/VzOewZL571eXvlhjJrSyHGxwZySG4hNhujxCWNZSqrCuo/+CnvaXM8yGDTSO8CdcvXiKJ2ykBnx1jrMWedgybNa7UrIj9vo7BCPXrhxxyWvnhrfu8+K0AZP6tOFAoGAd4DjA5LlzpDWrGZQPkw/5RfkWVjrNmk/FootQAs6djcop69Pw9ZN/DSnPquEzJoqiwppz92kKzj/Nm18nX8H+xIFd4Cq6s1seWpV4HbKzgbz/feWA2lUfDU3frmwEM5xXhCWkq2IkljJ42HnO/UeVAQrwTvoOpU53vHQUFxwqA8CgYBavkTg7Kz1wA3o7aIG1/0o5uDD7ogNbb9o5g0X040MWbUgZ75f7HmVwb0GpSEfOgZvnifqHCtdUtmXAf3p5+TTeA/T7r1O7EztNicPBfuyKXknfSf+AHoqD8WI8zuzsce8GPu5nmA7us3CxLyirpgIGzkeoo47J283XR1Mvoe9+g==</string>
-    <string name="DEVICE_ID">c83d5e89-6cb4-4a3c-b6c7-b85a41f38b42</string>
+import 'package:flutter/material.dart';
+import 'dart:math' as math;
+class ConvexPainter extends CustomPainter {
+  final _paint = Paint();
+  final _shadowPaint = Paint();
+  late ConvexNotchedRectangle _shape;
+
+  final double width;
+
+  final double height;
+  final double top;
+
+  final Animation<double> leftPercent;
+  ConvexPainter({
+    required this.top,
+    required this.width,
+    required this.height,
+    this.leftPercent = const AlwaysStoppedAnimation<double>(0.5),
+    Color color = Colors.white,
+    Color shadowColor = Colors.black38,
+    double sigma = 2,
+  }) : super(repaint: leftPercent) {
+    _paint.color = color;
+    try {
+      _shadowPaint
+        ..color = shadowColor
+        ..maskFilter = MaskFilter.blur(BlurStyle.outer, sigma);
+    } catch (e, s) {
+      debugPrintStack(label: 'ElevationError', stackTrace: s);
+    }
+    _shape = const ConvexNotchedRectangle(radius:  0);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    var host = Rect.fromLTWH(0, 0, size.width, size.height);
+    var percent = leftPercent.value;
+    var guest =
+    Rect.fromLTWH(size.width * percent - width / 2, top, width, height);
+    var path = _shape.getOuterPath(host, guest);
+    canvas.drawPath(path, _shadowPaint);
+    canvas.drawPath(path, _paint);
+  }
+
+  @override
+  bool shouldRepaint(ConvexPainter oldDelegate) {
+    return oldDelegate.leftPercent.value != leftPercent.value ||
+        oldDelegate._paint != _paint;
+  }
+}
+class ConvexNotchedRectangle extends NotchedShape {
+  final double radius;
+
+  const ConvexNotchedRectangle({this.radius = 0});
+
+  @override
+  Path getOuterPath(Rect host, Rect? guest) {
+    if (guest == null || !host.overlaps(guest)) return Path()..addRect(host);
+    final notchRadius = guest.width / 2.0;
+
+    return (Path()
+      ..moveTo(host.left, host.top)
+      ..lineTo(-13.5, 0.0)
+      ..quadraticBezierTo(1.5, 0, 13.4, -10)
+      ..arcToPoint(
+        const Offset(66.6, -10.0),
+        radius: Radius.circular(notchRadius),
+        clockwise: true,
+      )
+      ..quadraticBezierTo(78.5, 0, 93.5, 0) // Mirrored quadratic curve
+      ..lineTo(host.right, host.top)
+      ..close());
+  }
+}
