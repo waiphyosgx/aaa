@@ -1,26 +1,39 @@
 
-
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-class ConvexPainter extends CustomPainter {
+
+class FalconNavigationPainter extends CustomPainter {
   final _paint = Paint();
   final _shadowPaint = Paint();
-  late ConvexNotchedRectangle _shape;
+  late _ConvexNotchedRectangle _shape;
+
 
   final double width;
 
+
   final double height;
+
+
   final double top;
 
+
   final Animation<double> leftPercent;
-  ConvexPainter({
+
+
+  final TextDirection? textDirection;
+
+
+  FalconNavigationPainter({
     required this.top,
     required this.width,
     required this.height,
     this.leftPercent = const AlwaysStoppedAnimation<double>(0.5),
+    this.textDirection,
     Color color = Colors.white,
     Color shadowColor = Colors.black38,
     double sigma = 2,
+    Gradient? gradient,
+    double? cornerRadius,
   }) : super(repaint: leftPercent) {
     _paint.color = color;
     try {
@@ -30,13 +43,15 @@ class ConvexPainter extends CustomPainter {
     } catch (e, s) {
       debugPrintStack(label: 'ElevationError', stackTrace: s);
     }
-    _shape = const ConvexNotchedRectangle(radius:  0);
+    _shape = _ConvexNotchedRectangle(radius: cornerRadius ?? 0);
   }
 
   @override
   void paint(Canvas canvas, Size size) {
     var host = Rect.fromLTWH(0, 0, size.width, size.height);
-    var percent = leftPercent.value;
+    var percent = textDirection == TextDirection.rtl
+        ? (1 - leftPercent.value)
+        : leftPercent.value;
     var guest =
     Rect.fromLTWH(size.width * percent - width / 2, top, width, height);
     var path = _shape.getOuterPath(host, guest);
@@ -45,32 +60,487 @@ class ConvexPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(ConvexPainter oldDelegate) {
+  bool shouldRepaint(FalconNavigationPainter oldDelegate) {
     return oldDelegate.leftPercent.value != leftPercent.value ||
         oldDelegate._paint != _paint;
   }
 }
-class ConvexNotchedRectangle extends NotchedShape {
+class _ConvexNotchedRectangle extends NotchedShape {
   final double radius;
 
-  const ConvexNotchedRectangle({this.radius = 0});
+  const _ConvexNotchedRectangle({this.radius = 0});
 
   @override
   Path getOuterPath(Rect host, Rect? guest) {
     if (guest == null || !host.overlaps(guest)) return Path()..addRect(host);
+
     final notchRadius = guest.width / 2.0;
 
-    return (Path()
-      ..moveTo(host.left, host.top)
-      ..lineTo(-13.5, 0.0)
-      ..quadraticBezierTo(1.5, 0, 13.4, -10)
+    const s1 = 15.0;
+    const s2 = 1.0;
+
+    final r = notchRadius;
+    final a = -1.0 * r - s2;
+    final b = host.top - guest.center.dy;
+
+    final n2 = math.sqrt(b * b * r * r * (a * a + b * b - r * r));
+    final p2xA = ((a * r * r) - n2) / (a * a + b * b);
+    final p2xB = ((a * r * r) + n2) / (a * a + b * b);
+    final p2yA = -math.sqrt(r * r - p2xA * p2xA);
+    final p2yB = -math.sqrt(r * r - p2xB * p2xB);
+
+    final p = List<Offset>.filled(6, Offset.zero, growable: false);
+
+    p[0] = Offset(a - s1, b);
+    p[1] = Offset(a, b);
+    final cmp = b < 0 ? -1.0 : 1.0;
+    p[2] = cmp * p2yA > cmp * p2yB ? Offset(p2xA, p2yA) : Offset(p2xB, p2yB);
+
+    p[3] = Offset(-1.0 * p[2].dx, p[2].dy);
+    p[4] = Offset(-1.0 * p[1].dx, p[1].dy);
+    p[5] = Offset(-1.0 * p[0].dx, p[0].dy);
+
+    for (var i = 0; i < p.length; i += 1) {
+      p[i] = p[i] + guest.center;
+    }
+
+    return radius > 0
+        ? (Path()
+      ..moveTo(host.left, host.top + radius)
+      ..arcToPoint(Offset(host.left + radius, host.top),
+          radius: Radius.circular(radius))
+      ..lineTo(p[0].dx, p[0].dy)
+      ..quadraticBezierTo(p[1].dx, p[1].dy, p[2].dx, p[2].dy)
       ..arcToPoint(
-        const Offset(66.6, -10.0),
+        p[3],
         radius: Radius.circular(notchRadius),
         clockwise: true,
       )
-      ..quadraticBezierTo(78.5, 0, 93.5, 0) // Mirrored quadratic curve
+      ..quadraticBezierTo(p[4].dx, p[4].dy, p[5].dx, p[5].dy)
+      ..lineTo(host.right - radius, host.top)
+      ..arcToPoint(Offset(host.right, host.top + radius),
+          radius: Radius.circular(radius))
+      ..lineTo(host.right, host.bottom)
+      ..lineTo(host.left, host.bottom)
+      ..close())
+        : (Path()
+      ..moveTo(host.left, host.top)
+      ..lineTo(p[0].dx, p[0].dy)
+      ..quadraticBezierTo(p[1].dx, p[1].dy, p[2].dx, p[2].dy)
+      ..arcToPoint(
+        p[3],
+        radius: Radius.circular(notchRadius),
+        clockwise: true,
+      )
+      ..quadraticBezierTo(p[4].dx, p[4].dy, p[5].dx, p[5].dy)
       ..lineTo(host.right, host.top)
+      ..lineTo(host.right, host.bottom)
+      ..lineTo(host.left, host.bottom)
       ..close());
+  }
+}
+
+
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+
+import 'my_painter.dart';
+
+class FalconNavigationBar extends StatefulWidget {
+  final GestureTapIndexCallback? onTap;
+
+  final TabController? controller;
+
+  final Color? backgroundColor;
+
+  final Color? shadowColor;
+
+  final double? cornerRadius;
+
+  final int? initialActiveIndex;
+
+  final double? height;
+
+  final double? curveSize;
+
+  final double? top;
+
+  final double? elevation;
+
+  final Curve curve;
+
+  final List<NavItem> children;
+
+  const FalconNavigationBar({
+    Key? key,
+    int? initialActiveIndex,
+    bool? disableDefaultTabController,
+    GestureTapIndexCallback? onTap,
+    TabController? controller,
+    Color? activeColor,
+    Color? backgroundColor,
+    Color? shadowColor,
+    Gradient? gradient,
+    double? height,
+    double? curveSize,
+    double? top,
+    double? elevation,
+    double? cornerRadius,
+    Curve? curve,
+    required List<NavItem> children,
+  }) : this.builder(
+          key: key,
+          onTap: onTap,
+          controller: controller,
+          backgroundColor: backgroundColor,
+          shadowColor: shadowColor,
+          initialActiveIndex: initialActiveIndex,
+          height: height,
+          curveSize: curveSize,
+          top: top,
+          elevation: elevation,
+          cornerRadius: cornerRadius,
+          curve: curve ?? Curves.easeInOut,
+          children: children,
+        );
+
+  const FalconNavigationBar.builder(
+      {Key? key,
+      this.initialActiveIndex,
+      this.onTap,
+      this.controller,
+      this.backgroundColor,
+      this.shadowColor,
+      this.height,
+      this.curveSize,
+      this.top,
+      this.elevation,
+      this.cornerRadius,
+      this.curve = Curves.easeInOut,
+      required this.children})
+      : super(key: key);
+
+  @override
+  FalconNavigationBarState createState() {
+    return FalconNavigationBarState();
+  }
+}
+
+class FalconNavigationBarState extends State<FalconNavigationBar>
+    with TickerProviderStateMixin {
+  int? _currentIndex;
+
+  int? get currentIndex => _currentIndex;
+  int _warpUnderwayCount = 0;
+  Animation<double>? _animation;
+  AnimationController? _animationController;
+  TabController? _controller;
+
+  int _previousTimestamp = 0;
+  static const _TRANSITION_DURATION = 150;
+
+  @override
+  void initState() {
+    if (widget.cornerRadius != null && widget.cornerRadius! > 0) {
+      throw FlutterError.fromParts(<DiagnosticsNode>[
+        ErrorSummary('ConvexAppBar is configured with cornerRadius'),
+        ErrorDescription(
+            'Currently the corner only work for fixed style, if you are using '
+            'other styles, the convex shape can be broken on the first and last tab item '),
+        ErrorHint(
+            'You should use TabStyle.fixed or TabStyle.fixedCircle to make the'
+            ' background display with topLeft/topRight corner'),
+      ]);
+    }
+    _resetState();
+    super.initState();
+  }
+
+  void _handleTabControllerAnimationTick() {
+    if (_warpUnderwayCount > 0 ||
+        _controller == null ||
+        !_controller!.indexIsChanging) {
+      return;
+    }
+    if (_controller!.index != _currentIndex) {
+      _warpToCurrentIndex();
+    }
+  }
+
+  Future<void> _warpToCurrentIndex() async {
+    if (!mounted) return Future<void>.value();
+    final c = _controller;
+    if (c == null) {
+      return;
+    }
+    if (_blockEvent(c.index)) return;
+    final previousIndex = c.previousIndex;
+    final index = c.index;
+
+    _warpUnderwayCount += 1;
+    await _animateTo(index, from: previousIndex);
+    _warpUnderwayCount -= 1;
+    return Future<void>.value();
+  }
+
+  Future<void> _animateTo(int index, {int? from}) async {
+    var gap = DateTime.now().millisecondsSinceEpoch - _previousTimestamp;
+    _updateAnimation(
+      from: from ?? _currentIndex,
+      to: index,
+      duration: Duration(
+          milliseconds: gap < _TRANSITION_DURATION ? 0 : _TRANSITION_DURATION),
+    );
+
+    _animationController?.forward();
+    if (mounted) {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
+    _previousTimestamp = DateTime.now().millisecondsSinceEpoch;
+  }
+
+  Animation<double> _updateAnimation(
+      {int? from,
+      int? to,
+      Duration duration = const Duration(milliseconds: _TRANSITION_DURATION)}) {
+    if (from != null && (from == to) && _animation != null) {
+      return _animation!;
+    }
+    from ??= _controller?.index ?? widget.initialActiveIndex ?? 0;
+    to ??= from;
+    final lower = (2 * from + 1) / (2 * widget.children.length);
+    final upper = (2 * to + 1) / (2 * widget.children.length);
+    _animationController?.dispose();
+    final controller = AnimationController(duration: duration, vsync: this);
+    final curve = CurvedAnimation(
+      parent: controller,
+      curve: widget.curve,
+    );
+    _animationController = controller;
+    return _animation = Tween(begin: lower, end: upper).animate(curve);
+  }
+
+  @override
+  void dispose() {
+    _controller?.animation?.removeListener(_handleTabControllerAnimationTick);
+    _controller = null;
+
+    _animationController?.dispose();
+    super.dispose();
+  }
+
+  TabController? get _currentControllerRef {
+    return widget.controller ?? DefaultTabController.maybeOf(context);
+  }
+
+  void _updateTabController() {
+    final newController = _currentControllerRef;
+    if (newController == _controller) return;
+    _controller?.animation?.removeListener(_handleTabControllerAnimationTick);
+    _controller = newController;
+    _controller?.animation?.addListener(_handleTabControllerAnimationTick);
+  }
+
+  void _resetState() {
+    var index = _controller?.index ?? widget.initialActiveIndex;
+
+    _currentIndex = index ?? 0;
+
+    if (_controller != null) {
+      _updateAnimation();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_controller != _currentControllerRef) {
+      _updateTabController();
+      _resetState();
+    }
+  }
+
+  @override
+  void didUpdateWidget(FalconNavigationBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller ||
+        widget.children.length != oldWidget.children.length) {
+      _updateTabController();
+      _resetState();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final additionalBottomPadding =
+        math.max(MediaQuery.of(context).padding.bottom, 0.0);
+    final convexIndex = _currentIndex;
+    final active = true;
+
+    final height = (widget.height ?? 50) + additionalBottomPadding;
+    final width = MediaQuery.of(context).size.width;
+    var percent = _animation ?? _updateAnimation();
+    var factor = 1 / widget.children.length;
+    var textDirection = Directionality.of(context);
+    var dx = convexIndex! / (widget.children.length - 1);
+    if (textDirection == TextDirection.rtl) {
+      dx = 1 - dx;
+    }
+
+    var offset = FractionalOffset(widget.children.length > 1 ? dx : 0.0, 0);
+    return FalconStack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.bottomCenter,
+      children: <Widget>[
+        SizedBox(
+          height: height,
+          width: width,
+          child: CustomPaint(
+            painter: FalconNavigationPainter(
+              top: widget.top ?? -25,
+              width: widget.curveSize ?? 80,
+              height: widget.curveSize ?? 80,
+              color: widget.backgroundColor ?? Colors.blue,
+              shadowColor: widget.shadowColor ?? Colors.black38,
+              sigma: widget.elevation ?? 1,
+              leftPercent: percent,
+            ),
+          ),
+        ),
+        _barContent(height, additionalBottomPadding, convexIndex),
+        Positioned.fill(
+          top: widget.top ?? -25,
+          bottom: additionalBottomPadding,
+          child: FractionallySizedBox(
+              widthFactor: factor,
+              alignment: offset,
+              child: GestureDetector(
+                onTap: () => _onTabClick(convexIndex),
+                child: _newTab(convexIndex, active),
+              )),
+        ),
+      ],
+    );
+  }
+
+  Widget _barContent(double height, double paddingBottom, int curveTabIndex) {
+    var children = <Widget>[];
+    for (var i = 0; i < widget.children.length; i++) {
+      if (i == curveTabIndex) {
+        children.add(Expanded(child: Container()));
+        continue;
+      }
+      var active = _currentIndex == i;
+      children.add(Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _onTabClick(i),
+          child: _newTab(i, active),
+        ),
+      ));
+    }
+
+    return Container(
+      height: height,
+      padding: EdgeInsets.only(bottom: paddingBottom),
+      child: Row(
+        mainAxisSize: MainAxisSize.max,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: children,
+      ),
+    );
+  }
+
+  Widget _newTab(int i, bool active) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Text('Hello'),
+        Icon(Icons.home),
+      ],
+    );
+  }
+
+  bool _blockEvent(int i) {
+    return false;
+  }
+
+  void _onTabClick(int i) {
+    if (_blockEvent(i)) return;
+    if (_controller == null) {
+      _animateTo(i);
+    } else {
+      _controller!.animateTo(i);
+    }
+    widget.onTap?.call(i);
+  }
+}
+
+class NavItem {
+  final String title;
+  final IconData icon;
+
+  NavItem(this.title, this.icon);
+}
+
+typedef GestureTapIndexCallback = void Function(int index);
+
+class FalconStack extends Stack {
+  const FalconStack({
+    Key? key,
+    AlignmentGeometry alignment = AlignmentDirectional.topStart,
+    TextDirection? textDirection,
+    StackFit fit = StackFit.loose,
+    Clip clipBehavior = Clip.hardEdge,
+    List<Widget> children = const <Widget>[],
+  }) : super(
+          key: key,
+          alignment: alignment,
+          textDirection: textDirection,
+          fit: fit,
+          clipBehavior: clipBehavior,
+          children: children,
+        );
+
+  @override
+  RenderStack createRenderObject(BuildContext context) {
+    return _RenderStack(
+      alignment: alignment,
+      textDirection: textDirection ?? Directionality.of(context),
+      fit: fit,
+      clipBehavior: clipBehavior,
+    );
+  }
+}
+
+class _RenderStack extends RenderStack {
+  _RenderStack({
+    List<RenderBox>? children,
+    AlignmentGeometry alignment = AlignmentDirectional.topStart,
+    TextDirection? textDirection,
+    StackFit fit = StackFit.loose,
+    Clip clipBehavior = Clip.hardEdge,
+  }) : super(
+          children: children,
+          alignment: alignment,
+          textDirection: textDirection,
+          clipBehavior: clipBehavior,
+          fit: fit,
+        );
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (clipBehavior == Clip.none || size.contains(position)) {
+      if (hitTestChildren(result, position: position) ||
+          hitTestSelf(position)) {
+        result.add(BoxHitTestEntry(this, position));
+        return true;
+      }
+    }
+    return false;
   }
 }
