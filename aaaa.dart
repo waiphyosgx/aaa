@@ -6,20 +6,19 @@ part 'data_model.g.dart';
 @freezed
 class DataModel with _$DataModel {
   const factory DataModel({
-    required Data data,
+    Data? data,
   }) = _DataModel;
 
   factory DataModel.fromJson(Map<String, dynamic> json) => _$DataModelFromJson(json);
 }
 
-
 @freezed
 class Data with _$Data {
   const factory Data({
-    required Categories categories,
-    required AssetClassesSecurities assetClassesSecurities,
-    required Sectors sectors,
-    required ListData list,
+    Categories? categories,
+    AssetClassesSecurities? assetClassesSecurities,
+    Sectors? sectors,
+    ListData? list,
   }) = _Data;
 
   factory Data.fromJson(Map<String, dynamic> json) => _$DataFromJson(json);
@@ -28,7 +27,7 @@ class Data with _$Data {
 @freezed
 class Categories with _$Categories {
   const factory Categories({
-    required List<CategoryData> data,
+    List<CategoryData>? data,
   }) = _Categories;
 
   factory Categories.fromJson(Map<String, dynamic> json) => _$CategoriesFromJson(json);
@@ -37,7 +36,7 @@ class Categories with _$Categories {
 @freezed
 class CategoryData with _$CategoryData {
   const factory CategoryData({
-    required Category data,
+    Category? data,
   }) = _CategoryData;
 
   factory CategoryData.fromJson(Map<String, dynamic> json) => _$CategoryDataFromJson(json);
@@ -46,8 +45,8 @@ class CategoryData with _$CategoryData {
 @freezed
 class Category with _$Category {
   const factory Category({
-    required String id,
-    required String name,
+    String? id,
+    String? name,
   }) = _Category;
 
   factory Category.fromJson(Map<String, dynamic> json) => _$CategoryFromJson(json);
@@ -56,7 +55,7 @@ class Category with _$Category {
 @freezed
 class AssetClassesSecurities with _$AssetClassesSecurities {
   const factory AssetClassesSecurities({
-    required List<AssetClassData> data,
+    List<AssetClassData>? data,
   }) = _AssetClassesSecurities;
 
   factory AssetClassesSecurities.fromJson(Map<String, dynamic> json) => _$AssetClassesSecuritiesFromJson(json);
@@ -65,7 +64,7 @@ class AssetClassesSecurities with _$AssetClassesSecurities {
 @freezed
 class AssetClassData with _$AssetClassData {
   const factory AssetClassData({
-    required Category data,
+    Category? data,
   }) = _AssetClassData;
 
   factory AssetClassData.fromJson(Map<String, dynamic> json) => _$AssetClassDataFromJson(json);
@@ -74,7 +73,7 @@ class AssetClassData with _$AssetClassData {
 @freezed
 class Sectors with _$Sectors {
   const factory Sectors({
-    required List<AssetClassData> data,
+    List<AssetClassData>? data,
   }) = _Sectors;
 
   factory Sectors.fromJson(Map<String, dynamic> json) => _$SectorsFromJson(json);
@@ -83,8 +82,8 @@ class Sectors with _$Sectors {
 @freezed
 class ListData with _$ListData {
   const factory ListData({
-    required int count,
-    required List<ListItem> results,
+    int? count,
+    List<ListItem>? results,
   }) = _ListData;
 
   factory ListData.fromJson(Map<String, dynamic> json) => _$ListDataFromJson(json);
@@ -93,7 +92,7 @@ class ListData with _$ListData {
 @freezed
 class ListItem with _$ListItem {
   const factory ListItem({
-    required ListItemData data,
+    ListItemData? data,
   }) = _ListItem;
 
   factory ListItem.fromJson(Map<String, dynamic> json) => _$ListItemFromJson(json);
@@ -102,14 +101,14 @@ class ListItem with _$ListItem {
 @freezed
 class ListItemData with _$ListItemData {
   const factory ListItemData({
-    required String contentType,
-    required int id,
-    required String title,
-    required CategoryData category,
-    required List<AssetClassData> assetClass,
-    required Link link,
+    String? contentType,
+    int? id,
+    String? title,
+    CategoryData? category,
+    List<AssetClassData>? assetClass,
+    Link? link,
     String? migrated,
-    required int dateArticle,
+    int? dateArticle,
   }) = _ListItemData;
 
   factory ListItemData.fromJson(Map<String, dynamic> json) => _$ListItemDataFromJson(json);
@@ -118,7 +117,7 @@ class ListItemData with _$ListItemData {
 @freezed
 class Link with _$Link {
   const factory Link({
-    required String url,
+    String? url,
   }) = _Link;
 
   factory Link.fromJson(Map<String, dynamic> json) => _$LinkFromJson(json);
