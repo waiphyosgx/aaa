@@ -1,46 +1,121 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
-part 'favourite_api_parameter_model.g.dart';
-part 'favourite_api_parameter_model.freezed.dart';
+import 'dart:convert';
 
-@freezed
-class FavouriteApiParameterModel with _$FavouriteApiParameterModel {
-  FavouriteApiParameterModel._();
-  factory FavouriteApiParameterModel({
-    @JsonKey(name: 'user_id') String? userId,
-    @JsonKey(name: 'device_token') String? deviceToken,
-    @JsonKey(name: 'device_type') String? deviceType,
-    @JsonKey(name: 'watchlist_folders') String? watchListFolders,
-    @JsonKey(name: 'lower_limit') String? lowerLimit,
-    @JsonKey(name: 'upper_limit') String? upperLimit,
-    @JsonKey(name: 'notify') String? notify,
-    @JsonKey(name: 'stock_code') String? stockcode,
-    @JsonKey(name: 'c_notify') String? cNotify,
-    @JsonKey(name: 'cmd') String? cmd,
-    @JsonKey(name: 'folder_name') String? foldername,
-    @JsonKey(name: 'folder_name_new') String? foldernameNew,
-    @JsonKey(name: 'favouritesJson') List<Map<String, dynamic>>? favouritesJson,
-    @JsonKey(name : 'social_login_id') String? socialLoginId,
-    @JsonKey(name: 'push_token') String? pushToken,
-  }) = _FavouriteApiParameterModel;
-  factory FavouriteApiParameterModel.fromJson(Map<String, dynamic> json) => _$FavouriteApiParameterModelFromJson(json);
+import 'package:falcon_network/falcon_network.dart';
+import 'package:get_it/get_it.dart';
+import 'package:sgx_online_common/sgx_online_common_utils.dart';
+import '../../../sgx_online_favourites_model.dart';
+import '../../../sgx_online_favourites_service.dart';
 
-  Map<String, dynamic> get getParams {
-    Map<String, dynamic> params = {};
-    if (userId != null) params['user_id'] = userId;
-    if (deviceToken != null) params['device_token'] = deviceToken;
-    if (deviceType != null) params['device_type'] = deviceType;
-    if (watchListFolders != null) params['watchlist_folders'] = watchListFolders;
-    if (lowerLimit != null) params['lower_limit'] = lowerLimit;
-    if (upperLimit != null) params['upper_limit'] = upperLimit;
-    if (notify != null) params['notify'] = notify;
-    if (stockcode != null) params['stock_code'] = stockcode;
-    if (cNotify != null) params['c_notify'] = cNotify;
-    if (cmd != null) params['cmd'] = cmd;
-    if (foldername != null) params['folder_name'] = foldername;
-    if (foldernameNew != null) params['folder_name_new'] = foldernameNew;
-    if (favouritesJson != null) params['favouritesJson'] = favouritesJson;
-    if(socialLoginId != null) params['social_login_id'] = socialLoginId;
-    if(pushToken != null) params['push_token'] = pushToken;
-    return params;
+class FavouriteListServiceBauImpl extends FavouriteService {
+  FavouriteListServiceBauImpl({
+    FalconNetwork? falconNetwork,
+  }) {
+    this.falconNetwork = falconNetwork ?? GetIt.I.get<FalconNetwork>(instanceName: mobileId);
+  }
+  late FalconNetwork falconNetwork;
+  final SessionUtils _sessionUtils = SessionUtils();
+  @override
+  Future<List<FollowedFavouriteModel>> userFollowedFavourites({
+    required FavouriteApiParameterModel favouriteApiParameterModel,
+  }) async {
+    try {
+      String time = DateTime.now().millisecondsSinceEpoch.toString();
+      String xAuthToken = await _generateToken(time);
+      String uuid = await _sessionUtils.getUUID();
+      String deviceToken = await _sessionUtils.getDeviceToken();
+      if (uuid.isEmpty) {
+        uuid = deviceToken;
+      }
+      favouriteApiParameterModel = favouriteApiParameterModel.copyWith(
+        userId: uuid,
+        deviceToken: deviceToken,
+      );
+      dynamic resp = await falconNetwork.httpPostObj(
+        '',
+        payload: favouriteApiParameterModel.toJson(),
+        headers: {
+          authTimeStamp: time,
+          authToken: xAuthToken,
+        },
+        contentType: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+      dynamic decodedResp = json.decode(resp ?? '{}');
+
+      final followedFavouriteModel = (decodedResp as List).map((e) => FollowedFavouriteModel.fromJson(e)).toList();
+      return followedFavouriteModel;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<String> _generateToken(String time) async {
+    String deviceToken = await _sessionUtils.getDeviceToken();
+    String uuid = await _sessionUtils.getUUID();
+    String privateKey = await _sessionUtils.getPrivateKey();
+    if (uuid.trim().isEmpty) {
+      uuid = deviceToken;
+    }
+    return generateToken(time, uuid, deviceToken, privateKey);
+  }
+
+  @override
+  Future<List<WatchListFavouriteModel>> watListFavouriteServices(
+      {required FavouriteApiParameterModel favouriteApiParameterModel}) async {
+    try {
+      String time = DateTime.now().millisecondsSinceEpoch.toString();
+      String deviceToken = await _sessionUtils.getDeviceToken();
+      String uuid = await _sessionUtils.getUUID();
+      if (uuid.trim().isEmpty) {
+        uuid = deviceToken;
+      }
+      favouriteApiParameterModel = favouriteApiParameterModel.copyWith(
+        userId: uuid,
+        deviceToken: deviceToken,
+      );
+      String xAuthToken = await _generateToken(time);
+      final resp = await falconNetwork.httpPostObj(
+        '',
+        payload: (favouriteApiParameterModel.getParams),
+        headers: {
+          authToken: xAuthToken,
+          authTimeStamp: time,
+        },
+        contentType: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+      dynamic decodedResp = json.decode(resp);
+
+      final addWatchListFolderResponse = (decodedResp as List).map((e) => WatchListFavouriteModel.fromJson(e)).toList();
+      return addWatchListFolderResponse;
+    } catch (e) {
+      throw Exception('');
+    }
+  }
+
+  @override
+  Future<MergedFavouriteModel> mergedFavouriteService(
+      {required FavouriteApiParameterModel favouriteApiParameterModel}) async {
+    try {
+      String time = DateTime.now().millisecondsSinceEpoch.toString();
+      String deviceToken = await _sessionUtils.getDeviceToken();
+      String uuid = await _sessionUtils.getUUID();
+      if (uuid.trim().isEmpty) {
+        uuid = deviceToken;
+      }
+      String xAuthToken = await _generateToken(time);
+      final resp = await falconNetwork.httpPostObj(
+        '',
+        payload: favouriteApiParameterModel.getParams,
+        headers: {
+          authToken: xAuthToken,
+          authTimeStamp: time,
+        },
+        contentType: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+      dynamic decodedResp = json.decode(resp);
+
+      return MergedFavouriteModel.fromJson(decodedResp);
+    } catch (e) {
+      throw Exception('');
+    }
   }
 }
