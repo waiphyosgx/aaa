@@ -1,53 +1,54 @@
- Map<String, dynamic> get queryParams {
-    final result = <String, dynamic>{};
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = <String, dynamic>{};
 
-    if (categories != null && categories!.isNotEmpty) {
-      result['categories'] = categories!.join(',');
+    if (limit != null) {
+      data['limit'] = limit;
+    }
+    if (assetClass != null && assetClass!.isNotEmpty) {
+      data['assetClass'] = assetClass;
+    }
+    if (assetClassFilterEnabled != null) {
+      data['assetClassFilterEnabled'] = assetClassFilterEnabled;
+    }
+    if (sector != null && sector!.isNotEmpty) {
+      data['sector'] = sector;
+    }
+    if (sectorFilterEnabled != null) {
+      data['sectorFilterEnabled'] = sectorFilterEnabled;
+    }
+    if (fromDate != null) {
+      data['fromDate'] = fromDate;
+    }
+    if (fromDateFilterEnabled != null) {
+      data['fromDateFilterEnabled'] = fromDateFilterEnabled;
+    }
+    if (toDate != null) {
+      data['toDate'] = toDate;
+    }
+    if (toDateFilterEnabled != null) {
+      data['toDateFilterEnabled'] = toDateFilterEnabled;
+    }
+    if (category != null) {
+      data['category'] = category;
+    }
+    if (categoryFilterEnabled != null) {
+      data['categoryFilterEnabled'] = categoryFilterEnabled;
+    }
+    if (securityCode != null && securityCode!.isNotEmpty) {
+      data['securityCode'] = securityCode;
+    }
+    if (securityCodeFilterEnabled != null) {
+      data['securityCodeFilterEnabled'] = securityCodeFilterEnabled;
+    }
+    if (title != null && title!.isNotEmpty) {
+      data['title'] = title;
+    }
+    if (titleFilterEnabled != null) {
+      data['titleFilterEnabled'] = titleFilterEnabled;
+    }
+    if (lang != null && lang!.isNotEmpty) {
+      data['lang'] = lang;
     }
 
-    if (!isBlank(searchType)) {
-      result['searchType'] = searchType;
-    }
-
-    if (!isBlank(searchValue)) {
-      result['searchValue'] = searchValue;
-    }
-
-    if (!isBlank(from)) {
-      result['from'] = from;
-    }
-
-    if (!isBlank(to)) {
-      result['to'] = to;
-    }
-
-    if (subcategories != null && subcategories!.isNotEmpty) {
-      result['subcategories'] = subcategories!.join(',');
-    }
-
-    if (!isBlank(value)) {
-      result['value'] = value;
-    }
-
-    if (!isBlank(titleFilter)) {
-      result['titleFilter'] = titleFilter;
-    }
-
-    if (!isBlank(pageStart)) {
-      result['pagestart'] = pageStart;
-    }
-
-    if (!isBlank(pageSize)) {
-      result['pagesize'] = pageSize;
-    }
-
-    if (!isBlank(periodStart)) {
-      result['periodstart'] = periodStart;
-    }
-
-    if (!isBlank(periodEnd)) {
-      result['periodend'] = periodEnd;
-    }
-
-    return result;
+    return data;
   }
