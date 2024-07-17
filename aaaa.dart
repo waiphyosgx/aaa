@@ -1,121 +1,66 @@
 import 'dart:convert';
 
-import 'package:falcon_network/falcon_network.dart';
-import 'package:get_it/get_it.dart';
-import 'package:sgx_online_common/sgx_online_common_utils.dart';
-import '../../../sgx_online_favourites_model.dart';
-import '../../../sgx_online_favourites_service.dart';
+class RequestModel {
+  final int? limit;
+  final List<int>? assetClass;
+  final bool? assetClassFilterEnabled;
+  final List<int>? sector;
+  final bool? sectorFilterEnabled;
+  final int? fromDate;
+  final bool? fromDateFilterEnabled;
+  final int? toDate;
+  final bool? toDateFilterEnabled;
+  final int? category;
+  final bool? categoryFilterEnabled;
+  final String? securityCode;
+  final bool? securityCodeFilterEnabled;
+  final String? title;
+  final bool? titleFilterEnabled;
+  final String? lang;
 
-class FavouriteListServiceBauImpl extends FavouriteService {
-  FavouriteListServiceBauImpl({
-    FalconNetwork? falconNetwork,
-  }) {
-    this.falconNetwork = falconNetwork ?? GetIt.I.get<FalconNetwork>(instanceName: mobileId);
-  }
-  late FalconNetwork falconNetwork;
-  final SessionUtils _sessionUtils = SessionUtils();
-  @override
-  Future<List<FollowedFavouriteModel>> userFollowedFavourites({
-    required FavouriteApiParameterModel favouriteApiParameterModel,
-  }) async {
-    try {
-      String time = DateTime.now().millisecondsSinceEpoch.toString();
-      String xAuthToken = await _generateToken(time);
-      String uuid = await _sessionUtils.getUUID();
-      String deviceToken = await _sessionUtils.getDeviceToken();
-      if (uuid.isEmpty) {
-        uuid = deviceToken;
-      }
-      favouriteApiParameterModel = favouriteApiParameterModel.copyWith(
-        userId: uuid,
-        deviceToken: deviceToken,
-      );
-      dynamic resp = await falconNetwork.httpPostObj(
-        '',
-        payload: favouriteApiParameterModel.toJson(),
-        headers: {
-          authTimeStamp: time,
-          authToken: xAuthToken,
-        },
-        contentType: {'Content-Type': 'application/x-www-form-urlencoded'},
-      );
-      dynamic decodedResp = json.decode(resp ?? '{}');
+  RequestModel({
+    this.limit,
+    this.assetClass,
+    this.assetClassFilterEnabled,
+    this.sector,
+    this.sectorFilterEnabled,
+    this.fromDate,
+    this.fromDateFilterEnabled,
+    this.toDate,
+    this.toDateFilterEnabled,
+    this.category,
+    this.categoryFilterEnabled,
+    this.securityCode,
+    this.securityCodeFilterEnabled,
+    this.title,
+    this.titleFilterEnabled,
+    this.lang,
+  });
 
-      final followedFavouriteModel = (decodedResp as List).map((e) => FollowedFavouriteModel.fromJson(e)).toList();
-      return followedFavouriteModel;
-    } catch (e) {
-      return [];
-    }
-  }
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = {};
 
-  Future<String> _generateToken(String time) async {
-    String deviceToken = await _sessionUtils.getDeviceToken();
-    String uuid = await _sessionUtils.getUUID();
-    String privateKey = await _sessionUtils.getPrivateKey();
-    if (uuid.trim().isEmpty) {
-      uuid = deviceToken;
-    }
-    return generateToken(time, uuid, deviceToken, privateKey);
-  }
+    if (limit != null) data['limit'] = limit;
+    if (assetClass != null) data['assetClass'] = assetClass;
+    if (assetClassFilterEnabled != null) data['assetClassFilterEnabled'] = assetClassFilterEnabled;
+    if (sector != null) data['sector'] = sector;
+    if (sectorFilterEnabled != null) data['sectorFilterEnabled'] = sectorFilterEnabled;
+    if (fromDate != null) data['fromDate'] = fromDate;
+    if (fromDateFilterEnabled != null) data['fromDateFilterEnabled'] = fromDateFilterEnabled;
+    if (toDate != null) data['toDate'] = toDate;
+    if (toDateFilterEnabled != null) data['toDateFilterEnabled'] = toDateFilterEnabled;
+    if (category != null) data['category'] = category;
+    if (categoryFilterEnabled != null) data['categoryFilterEnabled'] = categoryFilterEnabled;
+    if (securityCode != null) data['securityCode'] = securityCode;
+    if (securityCodeFilterEnabled != null) data['securityCodeFilterEnabled'] = securityCodeFilterEnabled;
+    if (title != null) data['title'] = title;
+    if (titleFilterEnabled != null) data['titleFilterEnabled'] = titleFilterEnabled;
+    if (lang != null) data['lang'] = lang;
 
-  @override
-  Future<List<WatchListFavouriteModel>> watListFavouriteServices(
-      {required FavouriteApiParameterModel favouriteApiParameterModel}) async {
-    try {
-      String time = DateTime.now().millisecondsSinceEpoch.toString();
-      String deviceToken = await _sessionUtils.getDeviceToken();
-      String uuid = await _sessionUtils.getUUID();
-      if (uuid.trim().isEmpty) {
-        uuid = deviceToken;
-      }
-      favouriteApiParameterModel = favouriteApiParameterModel.copyWith(
-        userId: uuid,
-        deviceToken: deviceToken,
-      );
-      String xAuthToken = await _generateToken(time);
-      final resp = await falconNetwork.httpPostObj(
-        '',
-        payload: (favouriteApiParameterModel.getParams),
-        headers: {
-          authToken: xAuthToken,
-          authTimeStamp: time,
-        },
-        contentType: {'Content-Type': 'application/x-www-form-urlencoded'},
-      );
-      dynamic decodedResp = json.decode(resp);
-
-      final addWatchListFolderResponse = (decodedResp as List).map((e) => WatchListFavouriteModel.fromJson(e)).toList();
-      return addWatchListFolderResponse;
-    } catch (e) {
-      throw Exception('');
-    }
+    return data;
   }
 
-  @override
-  Future<MergedFavouriteModel> mergedFavouriteService(
-      {required FavouriteApiParameterModel favouriteApiParameterModel}) async {
-    try {
-      String time = DateTime.now().millisecondsSinceEpoch.toString();
-      String deviceToken = await _sessionUtils.getDeviceToken();
-      String uuid = await _sessionUtils.getUUID();
-      if (uuid.trim().isEmpty) {
-        uuid = deviceToken;
-      }
-      String xAuthToken = await _generateToken(time);
-      final resp = await falconNetwork.httpPostObj(
-        '',
-        payload: favouriteApiParameterModel.getParams,
-        headers: {
-          authToken: xAuthToken,
-          authTimeStamp: time,
-        },
-        contentType: {'Content-Type': 'application/x-www-form-urlencoded'},
-      );
-      dynamic decodedResp = json.decode(resp);
-
-      return MergedFavouriteModel.fromJson(decodedResp);
-    } catch (e) {
-      throw Exception('');
-    }
+  String toJsonString() {
+    return json.encode(toJson());
   }
 }
