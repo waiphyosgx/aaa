@@ -1,0 +1,1 @@
+{"flutter":{"platforms":{"android":{"default":{"projectId":"sgx-online-qa","appId":"1:828666375529:android:e45fcc1e514821e59961f8","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"sgx-online-qa","configurations":{"android":"1:828666375529:android:e45fcc1e514821e59961f8","web":"1:828666375529:web:8010be8efd6422699961f8"}}}}}}
