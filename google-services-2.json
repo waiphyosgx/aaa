@@ -84,6 +84,42 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:828666375529:android:62ef79cc9b8fb8839961f8",
+        "android_client_info": {
+          "package_name": "com.sgx.sgx_online_dev"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "828666375529-gatgg4udfbimd3p1isj9hf0gec5ldftj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgYRNXa95gmgHunhVVVBxE2LJsyDoIA5A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "828666375529-gatgg4udfbimd3p1isj9hf0gec5ldftj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "828666375529-8sod5u17pcm26s0iu5u1b18cdn40694j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.sgxOnlineFlutter"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"
