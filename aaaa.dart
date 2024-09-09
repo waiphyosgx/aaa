@@ -1,122 +1,62 @@
-plugins {
-    id "com.android.application"
-    // START: FlutterFire Configuration
-    id 'com.google.gms.google-services'
-    // END: FlutterFire Configuration
-    id "kotlin-android"
-    id "dev.flutter.flutter-gradle-plugin"
-}
-def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file('key.properties')
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-}
-
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader('UTF-8') { reader ->
-        localProperties.load(reader)
-    }
-}
-
-def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
-if (flutterVersionCode == null) {
-    flutterVersionCode = '1'
-}
-
-def flutterVersionName = localProperties.getProperty('flutter.versionName')
-if (flutterVersionName == null) {
-    flutterVersionName = '1.0'
-}
-android {
-    namespace "com.sgx.sgx_online"
-    compileSdk 34
-    ndkVersion flutter.ndkVersion
-
-    flavorDimensions "environment"
-
-    productFlavors {
-        dev {
-            dimension "environment"
-            applicationId "com.sgx.onlinedev"
-            versionNameSuffix "-dev"
-            resValue "string", "app_name", "SGX Online Dev"
-            manifestPlaceholders = [schemeName: "sgxonline"]
-        }
-        qa {
-            dimension "environment"
-            applicationId "com.sgx.online"
-            versionNameSuffix "-qa"
-            resValue "string", "app_name", "SGX Online QA"
-            manifestPlaceholders = [schemeName: "sgxonline"]
-        }
-        prod {
-            dimension "environment"
-            applicationId "com.sgx.onlineprod"
-            versionNameSuffix ""
-            resValue "string", "app_name", "SGX Online"
-            manifestPlaceholders = [schemeName: "sgxonline"]
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
-
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
-    }
-
-    signingConfigs {
-        defaultDebug {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-            storePassword keystoreProperties['storePassword']
-        }
-        defaultRelease {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-            storePassword keystoreProperties['storePassword']
-        }
-    }
-
-    defaultConfig {
-        minSdkVersion 21
-        targetSdkVersion 34
-        multiDexEnabled true
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
-    }
-
-    buildTypes {
-        debug {
-            signingConfig signingConfigs.defaultDebug
-            minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-        release {
-            signingConfig signingConfigs.defaultRelease
-            minifyEnabled false
-            shrinkResources false // Explicitly disable resource shrinking here as well
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-}
-
-flutter {
-    source '../..'
-}
-
-dependencies {
-    implementation 'com.huawei.agconnect:agconnect-core:1.5.2.300'
-    implementation 'com.google.code.gson:gson:2.8.0'
-}
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.sgx.sgx_online">
+   <application
+        android:label="SGX Mobile"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+       <meta-data
+               android:name="com.facebook.sdk.ApplicationId"
+               android:value="@string/facebook_app_id" />
+       <meta-data
+               android:name="com.facebook.sdk.ClientToken"
+               android:value="@string/facebook_client_token" />
+       <activity
+               android:name="com.facebook.FacebookActivity"
+               android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
+               android:label="@string/app_name" />
+       <activity
+               android:name="com.facebook.CustomTabActivity"
+               android:exported="true">
+           <intent-filter>
+               <action android:name="android.intent.action.VIEW" />
+               <category android:name="android.intent.category.DEFAULT" />
+               <category android:name="android.intent.category.BROWSABLE" />
+               <data android:scheme="@string/fb_login_protocol_scheme" />
+           </intent-filter>
+       </activity>
+       <activity android:name="com.linusu.flutter_web_auth_2.CallbackActivity" android:exported="true">
+           <intent-filter android:label="flutter_web_auth" android:autoVerify="true">
+               <action android:name="android.intent.action.VIEW" />
+               <category android:name="android.intent.category.DEFAULT" />
+               <category android:name="android.intent.category.BROWSABLE" />
+               <data android:scheme="${schemeName}" />
+           </intent-filter>
+       </activity>
+    </application>
+</manifest>
