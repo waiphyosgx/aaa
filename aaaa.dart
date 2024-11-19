@@ -1,232 +1,165 @@
-import 'dart:async';
-import 'dart:convert';
 import 'dart:developer';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:xml/xml.dart';
+
+import 'package:falcon_logger/falcon_logger.dart';
+
+import '../../../sgx_online_common_utils.dart';
+import '../native_utils/flutter_channel_invoker.dart';
+
+SessionUtils sessionUtils = SessionUtils();
+Future<void> migrateMobileStorage() async {
+  String uid = await sessionUtils.getDeviceToken();
+  String privateKey = await sessionUtils.getPrivateKey();
+  if (!kIsWeb && (uid.isEmpty || privateKey.isEmpty)) {
+    try {
+      String? privateKey;
+      //device id
+      String? deviceId;
+      //firebase token key
+      String? pushToken;
+      //user id for favourite social login
+      String? userId;
+      // String? push_token;
+
+      if (Platform.isAndroid) {
+        final oldSharedPrefPath = await _getNativeSharedPreferencesPath();
+        File file = File(oldSharedPrefPath);
+        if (file.existsSync()) {
+          String contents = await file.readAsString();
+          final document = XmlDocument.parse(contents);
+          Map<String, dynamic> nativePreferencesValue = {};
+          Iterable<XmlElement> elements = document.rootElement.children.whereType<XmlElement>();
+          for (XmlElement element in elements) {
+            String key = element.getAttribute('name') ?? '';
+            if(element.children.isNotEmpty && element.children.first.value != null) {
+               nativePreferencesValue[key] = element.children.first.value; // Store as string by default
+            }
+          }
+          privateKey = nativePreferencesValue['SYNC_PUB_KEY'];
+          deviceId = nativePreferencesValue['DEVICE_ID'];
+          // gcmKey = nativePreferencesValue['GCM'];
+          pushToken = nativePreferencesValue['TOKEN_PUSH'];
+          userId = nativePreferencesValue['UID'];
+          if(userId != null || userId?.isEmpty == null){
+            userId = deviceId;
+          }
+          print('private key is ${privateKey?.length} device id is $deviceId push token is $pushToken user id is $userId');
+          if (privateKey != null) {
+            await sessionUtils.savePrivateKey(privateKey: privateKey);
+          }
+          if (userId != null) {
+            sessionUtils.saveUUID(uuid: userId);
+          }
+          if (deviceId != null) {
+            await sessionUtils.saveDeviceToken(uuid: deviceId);
+          }
+          if (pushToken != null) {
+            await sessionUtils.savePushTokenKey(pushToken);
+          }
+        }
+      }
+    } catch (e) {
+      Log.e('migrateMobileStorage - error: $e');
+    }
+  }
+}
+
+Future<String> _getNativeSharedPreferencesPath() async {
+  if (Platform.isAndroid) {
+    Directory directory = Directory('/data/user/0/com.sgx.SGXandroid');
+    //android shared preference location
+    String sharedPreferenceLocation = '${directory.path}/shared_prefs/SGX_SHARED_PREFERENCES.xml';
+    return sharedPreferenceLocation;
+  }  else {
+    return throw Exception('unsupported platform');
+  }
+}
+
+
+
 import 'dart:io';
 
 import 'package:falcon_logger/falcon_logger.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart' as google;
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:huawei_push/huawei_push.dart';
-import 'package:sgx_online_common/sgx_online_common_utils.dart';
-import 'package:sgx_online_common/src/utils/native_utils/price_list_cahce_utils.dart';
 
-final _localNotification = FlutterLocalNotificationsPlugin();
-Future<String?> getNotificationToken(GoRouter router) async {
-  //for huawei
-  if (Platform.isAndroid && await isHmsAvailable()) {
-    return Future(() async {
-      final Completer<String> completer = Completer<String>();
-      bool isGranted = await Push.isAutoInitEnabled();
-      if (!isGranted) {
-        await Push.setAutoInitEnabled(true);
+import '../../../sgx_online_common_services.dart';
+import '../../../sgx_online_common_utils.dart';
+import '../session_utils/migrate_mobile_storage.dart';
+
+class NativeChannelListener {
+  static const MethodChannel _tokenChannel = MethodChannel('$kAppBundleId/token');
+  static const MethodChannel _storageChannel = MethodChannel('$kAppBundleId/native_storage');
+
+  static Future<void> migrateOldApp() async{
+    GoRouter.optionURLReflectsImperativeAPIs = true;
+
+    //only for android and ios
+    try {
+      if (Platform.isIOS) {
+        _tokenChannel.setMethodCallHandler(_handleTokenMethod);
+        _storageChannel.setMethodCallHandler(_handleStorageMethod);
       }
-
-      Push.getTokenStream.listen((token) {
-        if (!completer.isCompleted) {
-          completer.complete(token);
-        }
-      });
-      Push.getToken('');
-
-      final complete = await completer.future;
-      Push.onMessageReceivedStream.listen(
-        (message){
-          try {
-            final data = message.data;
-            final decodedData = jsonDecode(data ?? '{}');
-            final payloadList = decodedData['hcm'] as List;
-            Map<String, dynamic> payload = {};
-
-            // Iterate over the list and add all key-value pairs to the combined map
-            for (var p in payloadList) {
-              payload.addAll(p);
-            }
-
-            if (payload.isNotEmpty) {
-                _showNotification('', payload['message'], jsonEncode(payload));
-            }
-          }
-          catch(e){
-          }
-        },
-      );
-      Push.registerBackgroundMessageHandler(
-        (message){
-          try {
-            final data = message.data;
-            final decodedData = jsonDecode(data ?? '{}');
-            final payloadList = decodedData['hcm'] as List;
-            Map<String, dynamic> payload = {};
-
-            // Iterate over the list and add all key-value pairs to the combined map
-            for (var p in payloadList) {
-              payload.addAll(p);
-            }
-
-            log('message is received $data');
-            if (payload.isNotEmpty) {
-              _showNotification('', payload['message'], jsonEncode(payload));
-            }
-          }
-          catch(e){
-          }
-        },
-      );
-      Push.onNotificationOpenedApp.listen((data) {
-        _onNotificationClick(data, router);
-      });
-
-      return complete;
-    });
-
-  }
-  //for firebase (google android + apple)
-  else {
-    if (Firebase.apps.isEmpty) {
-      //double check for it
-      await Firebase.initializeApp();
+      else if (Platform.isAndroid) {
+        migrateMobileStorage();
+      }
+      ScreenAwakeUtils.initScreenAwake();
     }
-    google.FirebaseMessaging firebaseMessaging = google.FirebaseMessaging.instance;
-    //request noti permission
-    await firebaseMessaging.requestPermission();
-    //get push token
-    final token = await firebaseMessaging.getToken();
-    return token;
+    catch(e){
+      //
+    }
   }
-}
 
-void registerNotification(GoRouter router) async {
-  //for deep link and callback
-  await _localNotification.initialize(
-    const InitializationSettings(
-      android: AndroidInitializationSettings("@mipmap/sgx_logo"),
-    ),
-    onDidReceiveNotificationResponse: (response) {
-      _onNotificationClick(jsonDecode(response.payload ?? '{}'), router);
-    },
-  );
-  //notification when app is not active
-  google.FirebaseMessaging.onMessage.listen((data){
-     final notification = data.notification;
-    _showNotification(notification?.title ?? '', notification?.body ?? '', jsonEncode(data.data));
-  });
-  google.FirebaseMessaging.onBackgroundMessage((data) async{
-    _onNotificationClick(data.data, router);
-  });
-  //notification when app is in foreground
-  google.FirebaseMessaging.onMessageOpenedApp.listen((data) {
-    _onNotificationClick(data.data, router);
-  });
-}
-
-void _showNotification(String title,String body, String data) {
-  _localNotification.show(
-    data.hashCode,
-    title,
-    body,
-    payload: data, //convert to map
-    const NotificationDetails(
-      android: AndroidNotificationDetails(
-        'high_important_channel',
-        'high_important_notification',
-      ),
-    ),
-  );
-}
-
-void _onNotificationClick(Map<String, dynamic> data, GoRouter router) async {
-  log('the data is $data');
-  final String? code = data['stock_code'];
-  final String? type = data['type'];
-  final String? announcementId = data['announcement_id'];
-  final String? url = data['url'];
-  // final String? title = data['title'];
-  final String? ipoTitle = data['message'];
-
-  if (type != null) {
-    switch (type) {
-      case 's': //security
-        {
-          if (code != null && code.isNotEmpty) {
-            _redirectToSecurity(router: router, code: code);
-          }
-        }
-        break;
-      case 'i': //indices
-        {
-          if (code != null && code.isNotEmpty) {
-            _redirectToIndices(router: router, code: code);
-          }
-        }
-      case 'ipo': //ipo notification
-        {
-          if (ipoTitle != null && url != null) {
-            router.pushNamed('upcoming-ipos-details', extra: {
-              'title': ipoTitle,
-              'url': url,
-            });
-          }
-        }
+  static Future<void> _handleTokenMethod(MethodCall call) async {
+    switch (call.method) {
+      case 'saveToken':
+        _updatePushToken(call.arguments);
         break;
       default:
-        {
-          if (code != null) {
-            code.startsWith('.')
-                ? _redirectToSecurity(
-                    router: router,
-                    code: code.substring(1), //remove .
-                  )
-                : _redirectToIndices(router: router, code: code);
-          } else {
-            if (announcementId != null && announcementId.isNotEmpty) {
-              _redirectToAnnouncement(router: router, id: announcementId);
-            } else if (url != null && url.isNotEmpty) {
-              router.pushNamed('upcoming-ipos-details', extra: {
-                'title': ipoTitle,
-                'url': url,
-              });
-            }
-          }
+        throw PlatformException(
+          code: 'Unimplemented',
+          details: 'The method ${call.method} is not implemented',
+        );
+    }
+  }
+
+  static Future<String?> _handleStorageMethod(MethodCall call) async {
+    try {
+      if (call.method == "storage") {
+        String key = call.arguments as String;
+        switch (key) {
+          case "privateKey":
+            return await _getSessionUtils().getPrivateKey();
+          case "devideId":
+            return await _getSessionUtils().getDeviceToken();
+          case "userId":
+            return await _getSessionUtils().getDeviceToken();
+          case "announcement":
+            return await _getSessionUtils().getAnnouncementToken();
+          default:
+            return "";
         }
+      }
+      return "";
+    } catch (e) {
+      Log.e('_handleStorageMethod e - $e');
+      return "";
     }
+  }
+
+ static SessionUtils _getSessionUtils() {
+    return SessionUtils();
+  }
+
+ static void _updatePushToken(String token) async {
+    UserSyncService userSyncService = GetIt.I.get();
+    await userSyncService.updatePushToken(token);
   }
 }
 
-void _redirectToSecurity({required GoRouter router, required String code}) async {
-  try {
-    Map<String, dynamic> securityCacheMap = await loadSecurityCache();
-    if (securityCacheMap.isEmpty) {
-      securityCacheMap = await fetchSecurityMap();
-    }
-    final type = securityCacheMap[code];
-    if (type != null) {
-      router.pushNamed(
-        'security-details',
-        pathParameters: {
-          'stockType': type.toString(),
-          'selectedStock': code,
-        },
-      );
-    } else {
-      Log.e('invalid security');
-    }
-  } catch (e) {
-    Log.e("can't redirect $e");
-  }
-}
 
-void _redirectToIndices({required GoRouter router, required String code}) {
-  router.pushNamed(
-    'indices-details',
-    pathParameters: {
-      'selectedStock': code,
-    },
-  );
-}
 
-void _redirectToAnnouncement({required GoRouter router, required String id}) {
-  print('the id is $id');
-  router.pushNamed('/news/announcement-details/$id');
-}
