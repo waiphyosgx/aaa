@@ -1,93 +1,274 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'dart:io';
+
 import 'package:falcon_logger/falcon_logger.dart';
-import 'package:flutter/services.dart';
-import 'package:get_it/get_it.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart' as google;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
+import 'package:huawei_push/huawei_push.dart';
+import 'package:sgx_online_common/sgx_online_common_utils.dart';
+import 'package:sgx_online_common/src/utils/native_utils/price_list_cahce_utils.dart';
 
-import '../../../sgx_online_common_services.dart';
-import '../../../sgx_online_common_utils.dart';
-import '../session_utils/migrate_mobile_storage.dart';
+final _localNotification = FlutterLocalNotificationsPlugin();
 
-class NativeChannelListener {
-  static const MethodChannel _tokenChannel = MethodChannel('$kAppBundleId/token');
-  static const MethodChannel _storageChannel = MethodChannel('$kAppBundleId/native_storage');
-
-  static const MethodChannel _notificationChannel = MethodChannel('$kAppBundleId/notifications');
-
-  static Future<void> migrateSession() async {
-    GoRouter.optionURLReflectsImperativeAPIs = true;
-
-    //only for android and ios
-    try {
-      _tokenChannel.setMethodCallHandler(_handleTokenMethod);
-      _storageChannel.setMethodCallHandler(_handleStorageMethod);
-      await migrateMobileStorage();
-      ScreenAwakeUtils.initScreenAwake();
-    } catch (e) {
-      //
-    }
-  }
-
-  static Future<void> _handleTokenMethod(MethodCall call) async {
-    print('called save token');
-    switch (call.method) {
-      case 'saveToken':
-        _updatePushToken(call.arguments);
-        break;
-      default:
-        throw PlatformException(
-          code: 'Unimplemented',
-          details: 'The method ${call.method} is not implemented',
-        );
-    }
-  }
-
-  static Future<String?> _handleStorageMethod(MethodCall call) async {
-    try {
-      if (call.method == "storage") {
-        String key = call.arguments as String;
-        switch (key) {
-          case "privateKey":
-            return await _getSessionUtils().getPrivateKey();
-          case "devideId":
-            return await _getSessionUtils().getDeviceToken();
-          case "userId":
-            return await _getSessionUtils().getDeviceToken();
-          case "announcement":
-            return await _getSessionUtils().getAnnouncementToken();
-          default:
-            return "";
-        }
+Future<String?> getNotificationToken(GoRouter router) async {
+  //for huawei
+  if (Platform.isAndroid && await isHmsAvailable()) {
+    return Future(() async {
+      final Completer<String> completer = Completer<String>();
+      bool isGranted = await Push.isAutoInitEnabled();
+      if (!isGranted) {
+        await Push.setAutoInitEnabled(true);
       }
-      return "";
-    } catch (e) {
-      Log.e('_handleStorageMethod e - $e');
-      return "";
-    }
-  }
 
-  static SessionUtils _getSessionUtils() {
-    return SessionUtils();
-  }
-
-  static void _updatePushToken(String token) async {
-    UserSyncService userSyncService = GetIt.I.get();
-    await userSyncService.updatePushToken(token);
-  }
-  static iosNotificationHandler({
-    required void Function(dynamic) onReceived,
-    required void Function(dynamic) onTapped,
-  }) {
-    _notificationChannel.setMethodCallHandler((call) async {
-      final dynamic payload = call.arguments;
-
-      if (payload != null) {
-
-        if (call.method == "onNotificationReceived") {
-          onReceived(payload);
-        } else if (call.method == "onNotificationTapped") {
-          onTapped(payload);
+      Push.getTokenStream.listen((token) {
+        if (!completer.isCompleted) {
+          completer.complete(token);
         }
-      }
+      });
+      Push.getToken('');
+
+      final complete = await completer.future;
+      Push.onMessageReceivedStream.listen(
+        (message) {
+          try {
+            final data = message.data;
+            final decodedData = jsonDecode(data ?? '{}');
+            final payloadList = decodedData['hcm'] as List;
+            Map<String, dynamic> payload = {};
+
+            // Iterate over the list and add all key-value pairs to the combined map
+            for (var p in payloadList) {
+              payload.addAll(p);
+            }
+
+            if (payload.isNotEmpty) {
+              _showNotification('', payload['message'], jsonEncode(payload));
+            }
+          } catch (e) {
+            Log.e('getNotificationToken onMessageReceivedStream - $e');
+          }
+        },
+      );
+      Push.registerBackgroundMessageHandler(
+        (message) {
+          try {
+            final data = message.data;
+            final decodedData = jsonDecode(data ?? '{}');
+            final payloadList = decodedData['hcm'] as List;
+            Map<String, dynamic> payload = {};
+
+            // Iterate over the list and add all key-value pairs to the combined map
+            for (var p in payloadList) {
+              payload.addAll(p);
+            }
+
+            if (payload.isNotEmpty) {
+              _showNotification('', payload['message'], jsonEncode(payload));
+            }
+          } catch (e) {
+            Log.e('getNotificationToken registerBackgroundMessageHandler - $e');
+          }
+        },
+      );
+      Push.onNotificationOpenedApp.listen((data) {
+        _onNotificationClick(data, router);
+      });
+
+      return complete;
     });
   }
+  //for firebase (google android + apple)
+  else {
+    if (Firebase.apps.isEmpty) {
+      //double check for it
+      await Firebase.initializeApp();
+    }
+    google.FirebaseMessaging firebaseMessaging =
+        google.FirebaseMessaging.instance;
+    //request noti permission
+    await firebaseMessaging.requestPermission();
+    //get push token
+    if (Platform.isIOS) {
+      return await firebaseMessaging.getAPNSToken();
+    }
+    return await firebaseMessaging.getToken();
+  }
+}
+
+void registerNotification(GoRouter router) async {
+  //for deep link and callback
+  await _localNotification.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings("ic_noti_icon"),
+    ),
+    onDidReceiveNotificationResponse: (response) {
+      _onNotificationClick(jsonDecode(response.payload ?? '{}'), router);
+    },
+  );
+  //notification when app is not active
+  google.FirebaseMessaging.onMessage.listen((data) {
+    final notification = data.notification;
+    _showNotification(notification?.title ?? '', notification?.body ?? '',
+        jsonEncode(data.data));
+  });
+  google.FirebaseMessaging.onBackgroundMessage((data) async {
+    _onNotificationClick(data.data, router);
+  });
+  //notification when app is in foreground
+  google.FirebaseMessaging.onMessageOpenedApp.listen((data) {
+    _onNotificationClick(data.data, router);
+  });
+  if (Platform.isIOS) {
+    NativeChannelListener.iosNotificationHandler(
+      onReceived: (data) {
+        try {
+          final decodedData = jsonDecode(data.toString());
+          final payloadList = decodedData['apns'] as List;
+          Map<String, dynamic> payload = {};
+
+          // Iterate over the list and add all key-value pairs to the combined map
+          for (var p in payloadList) {
+            payload.addAll(p);
+          }
+
+          if (payload.isNotEmpty) {
+            _showNotification('', payload['alert'], jsonEncode(payload));
+          }
+        } catch (e) {
+          Log.e('apple notification received registerBackgroundMessageHandler - $e');
+        }
+      },
+      onTapped: (data) {
+        try {
+          final decodedData = jsonDecode(data.toString());
+          final payloadList = decodedData['apns'] as List;
+          Map<String, dynamic> payload = {};
+          for (var p in payloadList) {
+            payload.addAll(p);
+          }
+          if (payload.isNotEmpty) {
+            _onNotificationClick(payload, router);
+          }
+        } catch (e) {
+          Log.e('apple notification tab registerBackgroundMessageHandler - $e');
+        }
+      },
+    );
+  }
+}
+
+void _showNotification(String title, String body, String data) {
+  _localNotification.show(
+    data.hashCode,
+    title,
+    body,
+    payload: data, //convert to map
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'high_important_channel',
+        'high_important_notification',
+      ),
+    ),
+  );
+}
+
+void _onNotificationClick(Map<String, dynamic> data, GoRouter router) async {
+  final String? code = data['stock_code'];
+  final String? type = data['type'];
+  final String? announcementId = data['announcement_id'];
+  final String? url = data['url'];
+  // final String? title = data['title'];
+   String? ipoTitle = data['message'];
+  if(Platform.isIOS){
+    ipoTitle = data['alert'];
+  }
+
+  if (type != null) {
+    switch (type) {
+      case 's': //security
+        {
+          if (code != null && code.isNotEmpty) {
+            _redirectToSecurity(router: router, code: code);
+          }
+        }
+        break;
+      case 'i': //indices
+        {
+          if (code != null && code.isNotEmpty) {
+            _redirectToIndices(router: router, code: code);
+          }
+        }
+      case 'ipo': //ipo notification
+        {
+          if (ipoTitle != null && url != null) {
+            router.pushNamed('upcoming-ipos-details', extra: {
+              'title': ipoTitle,
+              'url': url,
+            });
+          }
+        }
+        break;
+      default:
+        {
+          if (code != null) {
+            code.startsWith('.')
+                ? _redirectToSecurity(
+                    router: router,
+                    code: code.substring(1), //remove .
+                  )
+                : _redirectToIndices(router: router, code: code);
+          } else {
+            if (announcementId != null && announcementId.isNotEmpty) {
+              _redirectToAnnouncement(router: router, id: announcementId);
+            } else if (url != null && url.isNotEmpty) {
+              router.pushNamed('upcoming-ipos-details', extra: {
+                'title': ipoTitle,
+                'url': url,
+              });
+            }
+          }
+        }
+    }
+  }
+}
+
+void _redirectToSecurity(
+    {required GoRouter router, required String code}) async {
+  try {
+    Map<String, dynamic> securityCacheMap = await loadSecurityCache();
+    if (securityCacheMap.isEmpty) {
+      securityCacheMap = await fetchSecurityMap();
+    }
+    final type = securityCacheMap[code];
+    if (type != null) {
+      router.pushNamed(
+        'security-details',
+        pathParameters: {
+          'stockType': type.toString(),
+          'selectedStock': code,
+        },
+      );
+    } else {
+      Log.e('invalid security');
+    }
+  } catch (e) {
+    Log.e("can't redirect $e");
+  }
+}
+
+void _redirectToIndices({required GoRouter router, required String code}) {
+  router.pushNamed(
+    'indices-details',
+    pathParameters: {
+      'selectedStock': code,
+    },
+  );
+}
+
+void _redirectToAnnouncement({required GoRouter router, required String id}) {
+  router.pushNamed('/news/announcement-details/$id');
 }
