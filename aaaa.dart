@@ -1,102 +1,201 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:csv/csv.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share/share.dart';
-import 'package:open_file/open_file.dart';
+import UIKit
+import Flutter
+//import SwiftyJSON
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
+@UIApplicationMain
+@objc class AppDelegate: FlutterAppDelegate {
+    
+    var secureManager: SecureManager?
 
-Future<void> exportToExcel(List<List<dynamic>> rows, String? fileName) async {
-  String csv = const ListToCsvConverter().convert(rows);
-  final bytes = utf8.encode(csv);
-  final directory = await getTemporaryDirectory();
-  final file = File('${directory.path}/${fileName ?? 'export'}.csv');
-  await file.writeAsBytes(bytes);
-  if (Platform.isAndroid) {
-    _downloadForAndroid(bytes, '${fileName ?? 'export'}.csv', file.path);
-  }
-  else{
-    Share.shareFiles([file.path]);
-  }
-}
+    var loginRetry: Int = 0
+    var syncPublicKeyRetry: Int = 0
 
-Future<void> _downloadForAndroid(
-    List<int> data, String fileName, String internalPath) async {
-  var status = await Permission.storage.request();
-  DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
-  final android = await deviceInfoPlugin.androidInfo;
-  if (status.isGranted || android.version.sdkInt >= 33) {
-    Directory? downloadDirectory = Directory('/storage/emulated/0/Download');
-    if (!await downloadDirectory.exists()) {
-      downloadDirectory = await getExternalStorageDirectory();
+    override func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        registerForPushNotifications()
+
+        self.secureManager = SecureManager();
+
+        GeneratedPluginRegistrant.register(with: self)
+        weak var registrar = self.registrar(forPlugin: "plugin-name")
+
+//        let factory = FLNativeViewFactory(messenger: registrar!.messenger())
+//        self.registrar(forPlugin: "<plugin-name>")!.register(
+//            factory,
+//            withId: "nativeView")
+
+        guard let controller = window?.rootViewController as? FlutterViewController else {
+            return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+        }
+                
+        let storageChannel = FlutterMethodChannel(name: "com.sgx.SGX/native",
+                                                  binaryMessenger: controller.binaryMessenger)
+        storageChannel.setMethodCallHandler { (call, result) in
+            if call.method == "getIOSCredentials" {
+                guard let secureManager = self.secureManager else {
+                    print("secureManager is nil")
+                    result(FlutterError(code: "UNAVAILABLE", message: "SecureManager not initialized", details: nil))
+                    return
+                }
+                guard let privateKey = secureManager.exportCleanPrivateKeyToPKCS1() else {
+                    print("privateKey is nil")
+                    result(FlutterError(code: "UNAVAILABLE", message: "Private key not available", details: nil))
+                    return
+                }
+                guard let userId = secureManager.getUserId() else {
+                    print("userId is nil")
+                    result(FlutterError(code: "UNAVAILABLE", message: "User ID not available", details: nil))
+                    return
+                }
+                guard let deviceToken = secureManager.getDeviceToken() else {
+                    print("deviceToken is nil")
+                    result(FlutterError(code: "UNAVAILABLE", message: "Device token not available", details: nil))
+                    return
+                }
+
+                    let prefs = [
+                        "SYNC_PUB_KEY": privateKey,
+                        "DEVICE_ID": deviceToken,
+                        "USER_ID": userId,
+                        "PUSH_TOKEN": self.retrievePushToken() ?? "",
+                    ] as [String : Any]
+                    result(prefs)
+                result(FlutterMethodNotImplemented)
+            }  else if call.method == "getPushToken" {
+                let prefs = [
+                    "PUSH_TOKEN": self.retrievePushToken() ?? "",
+                ] as [String : Any]
+                result(prefs);
+            } else {
+                result(FlutterMethodNotImplemented)
+            }
+        }
+        return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
-    if (downloadDirectory != null) {
-      String filePath = '${downloadDirectory.path}/$fileName';
-      File file = File(filePath);
-      await file.writeAsBytes(data);
 
-      // Show notification using NotificationManager
-      await _initializeNotifications(internalPath);
-      _showNotification(fileName, internalPath);
-    } else {
-      Share.shareFiles([internalPath]);
+
+    override func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        let allowedBundleIDs: Set<String> = []
+           guard let sourceApp = options[.sourceApplication] as? String, allowedBundleIDs.contains(sourceApp) else {
+               print("Untrusted source application: \(String(describing: options[.sourceApplication]))")
+               return false
+           }
+           guard let scheme = url.scheme, scheme == "sgxmobile" else {
+               return false
+           }
+        return true
     }
-  } else {
-    Share.shareFiles([internalPath]);
-  }
+
+    
+    class func showRequestError(_ message: String, title: String = "Error") {
+         // Ensure we have the correct AppDelegate instance
+         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else {
+             return
+         }
+         
+         // Main thread check as UI updates must be on the main thread
+         DispatchQueue.main.async {
+             let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
+             let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
+             alertController.addAction(okAction)
+             
+             // Presenting on the rootViewController
+             if let rootVC = appDelegate.window?.rootViewController {
+                 // If the rootViewController is presenting another view controller, present the alert on that one
+                 var currentVC = rootVC
+                 while let presentedVC = currentVC.presentedViewController {
+                     currentVC = presentedVC
+                 }
+                 currentVC.present(alertController, animated: true, completion: nil)
+             }
+         }
+     }
+    
+    func registerForPushNotifications() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            print("Permission granted: \(granted)")
+            guard granted else { return }
+            self.getNotificationSettings()
+        }
+    }
+
+    func getNotificationSettings() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized else { return }
+            DispatchQueue.main.async {
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+        }
+    }
+
+    override func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        // Convert binary device token to a string
+        let tokenParts = deviceToken.map { data in String(format: "%02.2hhx", data) }
+        let token = tokenParts.joined()
+        print("Device Token: \(token)")
+        UserDefaults.standard.set(token, forKey: "pushNotificationToken")
+        UserDefaults.standard.synchronize() // This line is optional as UserDefaults automatically synchronizes data periodically.
+
+        // Send the token to Flutter
+//        sendPushTokenToFlutter(token)
+    }
+    
+    func updatePushToken() {
+        if let pushToken = UserDefaults.standard.object(forKey: "pushNotificationToken") as? String {
+            sendPushTokenToFlutter(pushToken)
+        }
+    }
+    
+    func retrievePushToken() -> String? {
+        return UserDefaults.standard.string(forKey: "pushNotificationToken")
+    }
+
+    override func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        // Handle failure to receive push token
+        print("Failed to register: \(error)")
+    }
+
+    func sendPushTokenToFlutter(_ token: String) {
+        guard let controller = window?.rootViewController as? FlutterViewController else {
+            return
+        }
+        let channel = FlutterMethodChannel(name: "com.sgx.online/token", binaryMessenger: controller.binaryMessenger)
+        channel.invokeMethod("saveToken", arguments: token)
+    }
+    
+    override func applicationWillEnterForeground(_ application: UIApplication){
+        updatePushToken()
+    }
+    
+    override func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        tabNotification(payload: response.notification.request.content.userInfo)
+        
+        // Call the completion handler
+        completionHandler()
+    }
+    
+    override func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Handle the notification while the app is in the foreground
+        // For example, show an alert or play a sound
+        receividNotification(payload: notification.request.content.userInfo)
+        completionHandler([.alert, .sound, .badge])
+    }
+    // Send payload to Flutter
+        func receividNotification(payload: [AnyHashable: Any]) {
+            if let controller = window?.rootViewController as? FlutterViewController {
+                let channel = FlutterMethodChannel(name: "com.sgx.notifications", binaryMessenger: controller.binaryMessenger)
+                channel.invokeMethod("onNotificationReceived", arguments: payload)
+            }
+        }
+    
+    func tabNotification(payload: [AnyHashable: Any]) {
+        if let controller = window?.rootViewController as? FlutterViewController {
+            let channel = FlutterMethodChannel(name: "com.sgx.notifications", binaryMessenger: controller.binaryMessenger)
+            channel.invokeMethod("onNotificationTap", arguments: payload)
+        }
+    }
+
 }
 
-Future<void> _initializeNotifications(String filePath) async {
-  const AndroidInitializationSettings androidInitializationSettings =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  const InitializationSettings initializationSettings =
-      InitializationSettings(android: androidInitializationSettings);
-
-  await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
-    onDidReceiveNotificationResponse: (NotificationResponse response) {
-      _handleNotificationClick(filePath);
-    },
-  );
-}
-
-Future<void> _showNotification(String fileName, String filePath) async {
-  const AndroidNotificationDetails androidNotificationDetails =
-      AndroidNotificationDetails(
-    'channel_id', // Unique channel ID
-    'channel_name', // Channel name
-    channelDescription: 'Channel description',
-    importance: Importance.high,
-    priority: Priority.high,
-  );
-
-  const NotificationDetails notificationDetails =
-      NotificationDetails(android: androidNotificationDetails);
-
-  await flutterLocalNotificationsPlugin.show(
-    0, // Notification ID
-    'File download successfully', // Notification Title
-    fileName, // Notification Body
-    payload: filePath, // Optional payload
-    notificationDetails,
-  );
-}
-
-void _handleNotificationClick(String payload) async {
-  OpenFile.open(
-    payload,
-    type: "text/plain",
-    linuxUseGio: true,
-    linuxByProcess: false,
-  ).catchError((e) {
-    //
-  }).whenComplete((){
-    Share.shareFiles([payload]);
-  });
-}
