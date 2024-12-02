@@ -154,8 +154,10 @@ Future<void> registerNotification(GoRouter router) async {
 void _showNotification(GoRouter router, String title, String body,
     Map<String, dynamic> data) async {
   title = "SGX Notification";
+  String? type = data['type'];
   Widget icon = const SizedBox.shrink();
-  if (data['stock_code'] != null) {
+
+  if (type == 's' || type == 'i') {
     Map<String, dynamic> securityCacheMap = await loadSecurityCache();
     if (securityCacheMap.isEmpty) {
       securityCacheMap = await fetchSecurityMap();
@@ -175,7 +177,21 @@ void _showNotification(GoRouter router, String title, String body,
         height: 16,
       );
     }
-  } else {}
+  } else if (type == 'ipo') {
+    icon = Image.asset(
+      'assets/images/notifications/ic_ipo_outline.png',
+      package: 'sgx_online_common',
+      fit: BoxFit.fitWidth,
+      height: 16,
+    );
+  } else if (data['announcement_id'] != null) {
+    icon = Image.asset(
+      'assets/images/notifications/announcement.png',
+      package: 'sgx_online_common',
+      fit: BoxFit.fitWidth,
+      height: 16,
+    );
+  }
   showSlideDownPopup(
       context: router.routerDelegate.navigatorKey.currentContext!,
       title: title,
@@ -253,7 +269,6 @@ void _onNotificationClick(Map<String, dynamic> data, GoRouter router) async {
 void _redirectToSecurity(
     {required GoRouter router, required String code}) async {
   try {
-
     Map<String, dynamic> securityCacheMap = await loadSecurityCache();
     if (securityCacheMap.isEmpty) {
       securityCacheMap = await fetchSecurityMap();
